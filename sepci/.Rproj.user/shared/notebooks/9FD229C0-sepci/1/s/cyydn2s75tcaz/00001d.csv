@@ -1,0 +1,6 @@
+"0","# kerpar is used to pass arguments to our competion kernel"
+"0","ppp_with_index <- pairwise(valdepoza, select = powlinear_sel, "
+"0","                           selpar = list(ki = 0, kj = 1, p = 1, r0 = 0, smark = 1),  "
+"0","                           kernel = martin_ek,"
+"0","                           kerpar = list(dbh_mark = 1)) "
+"0","head(ppp_with_index$marks)"

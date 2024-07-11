@@ -1,0 +1,20 @@
+Package: sepci
+Title: Spatial Explicit Plant Competition Indices
+Version: 1.0-0
+Author: Andrés Bravo
+Maintainer: Andrés Bravo Núñez  <andres.bravo@uva.es>
+Description: Computation of spatially explicit forest competition indices.
+    The package provides an extension of functionalities of the 'siplab' package
+    (García, O. (2014) <https://CRAN.R-project.org/package=siplab>). This extension is
+    in the form of ready to use competition indices kernels.
+License: GPL (>= 2)
+Encoding: UTF-8
+LazyData: true
+Imports: Rdpack, dplyr, purrr, numDeriv
+Suggests: spelling, knitr, rmarkdown
+VignetteBuilder: knitr, rmarkdown
+RdMacros: Rdpack
+Depends: 
+    siplab, R (>= 2.10)
+Language: en-US
+RoxygenNote: 7.2.3

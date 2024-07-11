@@ -1,0 +1,351 @@
+---
+title: "Complex competition indexes in forests"
+output: rmarkdown::html_vignette
+bibliography: ../inst/REFERENCES.bib
+vignette: >
+  %\VignetteIndexEntry{Complex competition indexes in forests}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+## Getting started
+
+```{r libraries, message = FALSE, warning = FALSE}
+library(siplab)
+library(sepci)
+library(dplyr)
+```
+
+In order to compute competition indexes with siplab (@siplab) and sepci we need our stand
+data in *spatstat* package ppp class (*spatstat* is imported with siplab).
+If our data is a dataframe it should be converted.
+The only data that is mandatory to have to get a ppp is the x and y coordinates.
+
+```{r getting-started}
+# A toy example on how to convert a dataframe to a ppp
+
+# We are using a tibble but it's the same for a regular data frame
+stand_data <- tibble(
+  x = c(1, 2, 3), # x coordinate
+  y = c(1, 2, 3), # y coordinate
+  # Attributes of our trees/plants
+  dbh = c(1, 2, 3),
+  height = c(1, 2, 3),
+  height_start_crown = c(1, 2, 3),
+  height_largest_crown_radius = c(1, 2, 3),
+  largest_crown_radius = c(1, 2, 3)
+)
+
+# conversion to ppp
+stand_data <- ppp(stand_data$x, stand_data$y,
+                  c(min(stand_data$x), max(stand_data$x)),
+                  c(min(stand_data$y), max(stand_data$y)),
+                  marks = stand_data[, 3:7])
+
+```
+
+In this vignette, we are going to use the valdepoza data shipped with the package.
+It contains dbh, tree height, the height where crown radius is maximum,
+the largest crown radius and the species.
+
+```{r valdepoza-data}
+data(valdepoza)
+head(valdepoza$marks)
+```
+
+## Computing simple indexes
+Most spatially explicit indexes are simple. We define a simple index as one that
+uses values available directly as marks in the point pattern and the distances
+between points. For example, the Hegyi index that uses the dbh of the trees would
+be a simple index. In order to compute competition indexes siplab uses kernels.
+These kernels are functions that for a given tree i and given competitors j they
+compute the competition effect of each of the j trees over the tree i.
+The competition index of tree is defined as the sum of all of these effects.
+The simple indexes that can be computed with the pre given kernels of siplab
+and sepci include:
+
+* @hegyi (powers_ker in siplab with parameters pi=1, pj=1, pr=1)
+* @martinek exponential weighting of relative diameters index (martin_ek in sepci)
+* @bella1971 influence zone overlap index (bella in sepci)
+* @alemdag growing space index (alemdag in sepci)
+* Point density index using @10.1093/forestscience/8.1.85 point density measure
+(point_density in sepci)
+
+For example, the @martinek index is defined as:
+$$
+\sum_{i\neq j} \frac{DBH_j}{DBH_i} e^{\frac{16 Dist_{ij}}{DBH_i+DBH_j}}
+$$
+Where i is the subject tree and j refers to the competitors. DBH is the diameter
+at breast height, and $Dist_{ij}$ is the distance between tree i and tree j. To
+compute this index, we can use the following code:
+
+```{r simple-index}
+# kerpar is used to pass arguments to our competion kernel
+ppp_with_index <- pairwise(valdepoza, maxR = 10, kernel = martin_ek,
+                            kerpar = list(dbh_mark = 1))
+head(ppp_with_index$marks)
+```
+## Options for selecting competitors
+When computing competition indexes, one critical step is the choice of the trees
+that are competitors of the tree in question. Different methods are possible.
+In the function pairwise of siplab the option maxR allows considering as competitors
+only those in a given radius and maxN allows considering as competitors only the n
+nearest neighbors. It's also possible to define a selection kernel that returns all
+the competitors of a given tree. The siplab pre-given selection kernels can be used
+to compute the following selection methods:
+
+* Search radius proportional to plant size (size_sel)
+* Angle count sampling (powlinear_sel with ki=0, p=1, r0=0, smark="dbh")
+* Areas of influence overlap (powlinear_sel with  ki=kj, p=1, r0=0)
+* Vertical search cone (powlinear_sel with special parameters, see siplab ?select)
+
+Details can be found in siplab select help (?select). For example, @martinek index
+with angle count sampling would be coded as :
+
+```{r simple-index-with-selection}
+# kerpar is used to pass arguments to our competion kernel
+ppp_with_index <- pairwise(valdepoza, select = powlinear_sel,
+                           selpar = list(ki = 0, kj = 1, p = 1, r0 = 0, smark = 1),
+                           kernel = martin_ek,
+                           kerpar = list(dbh_mark = 1))
+head(ppp_with_index$marks)
+```
+## Computing a functional competition index
+### Preparations
+For each tree, we want to compute the index:
+
+$$\sum_{i\neq j}^{} \frac{CCSA_j}{CCSA_i*Dist_{ij}}$$
+Where $CCSA$ is a crown cross-sectional value at a certain percentage of the
+height of tree $i$, $i$ is the tree in question,  $j$ are the competitor trees
+and $Dist_{ij}$ is the Euclidean distance between the $i$ and the $j$ trees.
+
+The first thing we need is to create a function for each that trees that gives its
+crown cross-sectional area at a given height. For *Pinus Sylvestris* we follow
+@10.1093/forestry/cpt019. It gives two equations, one for the radius of the crown
+above the maximum crown radius and the other for the radius below the maximum:
+$$
+\begin{align*}
+&CRU_j = LCR\left(\frac{CL-CH_j}{L_U}\right)^{a_0+a_1(CL-CH_j/L_U)^{1/2}+a_2(HT/d)} \\
+&CRL_j = LCR\left(b_1+(1-b_1)\left(\frac{CH_j}{L_L}\right)^{b_2}\right) \\
+\end{align*}
+$$
+where $CRU_j$ is the upper crown radius(m) at each measurement point $j$;
+$CL$ is the crown length (m); $L_U$ is the length of the upper crown (m);
+$CRL_j$ is the lower crown radius (m) at each measurement point $j$;
+$LL$ is the length of the lower crown (m);$CH_j$ is the height above crown base
+at each measurement point $j$;$LCR$ is the largest crown radius (m);
+$HT$ is total tree height (m); $d$ is the diameter
+at breast height (cm) $a_i$ and $b_i$ are parameters depending on species.
+
+Let's translate this to R code with the proper parameters:
+```{r profile-equation}
+profile_equation_pinus_sylvestris <- function(LCR, HT, d, HLCR,  HBC, j) {
+  # HLCR is the height of the largest crown radius
+  # HBC is the height to the base of the crown
+  # j is the point we are consulting
+  # Out of the crown
+
+  if (j > HT || j < HBC) {return(0)}
+  # Upper part
+  a0 <- 0.7962
+  a1 <- -0.2848
+  a2 <- -0.2424
+
+  if (j >= HLCR && j < HT) {
+    crown_length <- HT - HBC
+    height_above_base <- j - HBC
+    length_upper_crown <- HT - HLCR
+
+    exponent <- a0 +
+      a1 * sqrt((crown_length - height_above_base) / length_upper_crown) +
+      a2 * (HT / d)
+
+    CRU <- LCR * ((crown_length - height_above_base) / length_upper_crown) ^
+      exponent
+    return(CRU)
+  }
+
+  b1 <- 0.7550
+  b2 <- 0.5169
+
+  if (j < HLCR && j >= HBC) {
+    height_above_base <- j - HBC
+    length_lower_crown <- HLCR - HBC
+
+    CRL <- LCR * (b1 + (1 - b1) * (height_above_base / length_lower_crown) ^ b2)
+    return(CRL)
+
+  }
+
+  return(0)
+}
+```
+
+For *Pinus nigra* and *Quercus pyrenaica*, we didn't find any crown profile work.
+We will use a geometric approach using two half spheroids to model the upper and
+lower crown.
+
+
+```{r geometric-approximation}
+# ccs_cparea_ellipsoid is one of our package functions that computes the
+# cross sectional projection area approximating the crown by a cone for the pine
+# and two half spheroids for the quercus
+profile_equation_pinus_nigra <- ccs_cparea_cone
+profile_equation_quercus_pyrenaica <- ccs_cparea_ellipsoid
+```
+
+We need to transform our profile equation that gives radius at a given height to
+an equation that gives cross-sectional projection area at a given height. This can
+be done automatically with the help of sepci helper function *cparea_at_height*, or
+can be achieved by programming the function manually. Lastly, we have to generate a
+function for each tree and save these functions as a mark of our ppp object:
+
+```{r function-creation}
+csa_function_selector <- function(species, LCR, HT, d, HLCR, HBC) {
+  if (species == "Quercus pyrenaica") {
+    return(function(x) {profile_equation_quercus_pyrenaica(HBC, HLCR, LCR, HT, x)})
+  }
+  if (species == "Pinus nigra") {
+    return(function(x) {profile_equation_pinus_nigra(HBC, LCR, HT, x)})
+  }
+  if (species == "Pinus sylvestris") {
+    return(
+      # Our helper function cparea_at_height transforms our profile equation
+      # into a crown projection area at height function
+      cparea_at_height(
+      function(x) {
+      profile_equation_pinus_sylvestris(LCR, HT, d, HLCR,  HBC, x)},
+      HLCR
+      ))
+  }
+}
+
+tree_csa_functions <- apply(valdepoza$marks, 1,
+FUN = function(row) {
+  names(row) <- colnames(valdepoza$marks)
+  unlist(csa_function_selector(unlist(row["species"]),
+                               as.numeric(row["largestCrownRadius"]),
+                               as.numeric(row["height"]), as.numeric(row["dbh"]),
+                               as.numeric(row["heightLargestCrownRadius"]),
+                               as.numeric(row["heightStartCrown"])))})
+
+# We add this functions as a column to the marks
+valdepoza$marks <- valdepoza$marks %>% mutate(csFunction = tree_csa_functions)
+```
+### Computing the index
+Everything is ready. We use the pairwise siplab function and the crown
+cross-functional kernel of our package to compute the index. We choose to select
+the competitors as the trees in a 10 m radius. And the percentage of height
+considered is 50 %
+
+```{r crown-projection-area}
+ ppp_with_index <- pairwise(valdepoza, maxR = 10, kernel = crown_cross_fk,
+                            kerpar = list(function_mark = 7,
+                                          height_tree_mark = 2,
+                                          height_percentage = 50))
+ head(ppp_with_index$marks |> select(-csFunction))
+```
+
+### Other functions: Volume above height
+If we want to use crown volume above height, we can transform our profile equation with
+the helper function *above_height_volume*. This can be slow as it's done using
+numerical integration. If performance is a problem, the above height volume function
+should be created manually. The code would look like:
+```{r volume-above-height}
+csa_function_selector <- function(species, LCR, HT, d, HLCR, HBC) {
+  if (species == "Quercus pyrenaica") {
+    return(function(x) {ccs_volume_ellipsoid(HBC, HLCR, LCR, HT, x)})
+  }
+  if (species == "Pinus nigra") {
+    return(function(x) {ccs_volume_cone(HBC, LCR, HT, x)})
+  }
+  if (species == "Pinus sylvestris") {
+    return(
+      # Our helper function cparea_at_height transforms our profile equation
+      # into a crown projection area at height function
+      above_height_volume(
+      function(x) {
+      profile_equation_pinus_sylvestris(LCR, HT, d, HLCR,  HBC, x)},
+      HT
+      ))
+  }
+}
+
+tree_csa_functions <- apply(valdepoza$marks, 1,
+FUN = function(row) {
+  names(row) <- colnames(valdepoza$marks)
+  unlist(csa_function_selector(unlist(row["species"]),
+                               as.numeric(row["largestCrownRadius"]),
+                               as.numeric(row["height"]), as.numeric(row["dbh"]),
+                               as.numeric(row["heightLargestCrownRadius"]),
+                               as.numeric(row["heightStartCrown"])))})
+
+# We add this functions as a column to the marks
+valdepoza$marks <- valdepoza$marks %>% mutate(csFunction = tree_csa_functions)
+
+ppp_with_index <- pairwise(valdepoza, maxR = 10, kernel = crown_cross_fk,
+                            kerpar = list(function_mark = 7,
+                                          height_tree_mark = 2,
+                                          height_percentage = 50))
+head(ppp_with_index$marks |> select(-csFunction))
+```
+### Other functions: Surface above height
+If we want to use crown surface above height, we can transform our profile equation with
+the helper function *above_height_surface*. This can be slow as it's done using
+numerical integration. If performance is a problem, the above height surface function
+should be created manually. The code would look like:
+```{r surface-above-height}
+csa_function_selector <- function(species, LCR, HT, d, HLCR, HBC) {
+  if (species == "Quercus pyrenaica") {
+    return(function(x) {ccs_surface_ellipsoid(HBC, HLCR, LCR, HT, x)})
+  }
+  if (species == "Pinus nigra") {
+    return(function(x) {ccs_surface_cone(HBC, LCR, HT, x)})
+  }
+  if (species == "Pinus sylvestris") {
+    return(
+      # Our helper function cparea_at_height transforms our profile equation
+      # into a crown projection area at height function
+      above_height_surface(
+      function(x) {
+      profile_equation_pinus_sylvestris(LCR, HT, d, HLCR,  HBC, x)},
+      HBC,
+      HT
+      ))
+  }
+}
+
+tree_csa_functions <- apply(valdepoza$marks, 1,
+FUN = function(row) {
+  names(row) <- colnames(valdepoza$marks)
+  unlist(csa_function_selector(unlist(row["species"]),
+                               as.numeric(row["largestCrownRadius"]),
+                               as.numeric(row["height"]), as.numeric(row["dbh"]),
+                               as.numeric(row["heightLargestCrownRadius"]),
+                               as.numeric(row["heightStartCrown"])))})
+
+# We add this functions as a column to the marks
+valdepoza$marks <- valdepoza$marks %>% mutate(csFunction = tree_csa_functions)
+
+ppp_with_index <- pairwise(valdepoza, maxR = 10, kernel = crown_cross_fk,
+                            kerpar = list(function_mark = 7,
+                                          height_tree_mark = 2,
+                                          height_percentage = 50))
+head(ppp_with_index$marks |> select(-csFunction))
+```
+## Bibliography
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
