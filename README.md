@@ -4,7 +4,7 @@ An r-package and resources for plant competition index computation
 To install the package use ```devtools::install_github("iuFOR-QuantitativeForestry/sepci/sepci")```
 
 # Vignettes
-[Complex competition indexes in forests](sepci/doc/sepci.html)
+[Complex competition indexes in forests](https://html-preview.github.io/?url=https://github.com/iuFOR-QuantitativeForestry/sepci/blob/main/sepci/doc/sepci.html)
 
 # Examples
 Collection of example code using sepci and siplab capabilities
