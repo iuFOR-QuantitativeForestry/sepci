@@ -10,4 +10,4 @@ To install the package use ```devtools::install_github("iuFOR-QuantitativeForest
 Collection of example code using sepci and siplab capabilities
 * [Create a new index](examples/creating_a_new_index.R)
 * [Split an index](examples/splitting_an_index.R) by inter vs intra species competition or by competition by below and by above.
-* [Plotting the competition field for a mean tree](plotting_mean_tree_competition_field.R)
+* [Plotting the competition field for a mean tree](examples/plotting_mean_tree_competition_field.R)
