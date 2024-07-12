@@ -1,9 +1,0 @@
-#   Useful functions/commands for developing
-#   Install Package:           'Ctrl + Shift + B'
-#   Check Package:             'Ctrl + Shift + E'
-#   Test Package:              'Ctrl + Shift + T'
-#   library(roxygen2) roxygenise()
-#   library(Rdpack) viewRd("./man/martin_ek.Rd")
-#   library(lintr) lint_dir()
-#   library(devtools) build() build_vignettes()
-#   install.packages('testthat') library(testthat)
