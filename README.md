@@ -1,8 +1,12 @@
 # SEPCI
 An r-package and resources for plant competition index computation
 
+---
+
 ## :book: Abstract 
 Competition is driving plant growth by modulating jointly with other drivers the potential growth due to site, genetic and ontogeny factors. Usually, competition is assessed in plant growth modelling and analysis by non-spatially explicit indices. However, stand spatial structure defined by plants positions and relative sizes is crucial in terms of stand growth allocation between trees. Several software tools exist for computing spatially explicit competition indices but requires additional coding to define specific indices. In response, we present sepci, an R package, for computing both known spatially explicit competition indices and novel indices that depend on measures retrievable with profile functions.
+
+---
 
 ## :computer: Installation
 To install the package use ```devtools::install_github("iuFOR-QuantitativeForestry/sepci/sepci")```
