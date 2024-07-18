@@ -1,5 +1,5 @@
 # SEPCI
-An r-package and resources for plant competition index computation
+An r-package and resources for plant competition index computation built over the capabilietes of the r-package [siplab](https://github.com/ogarciav/siplab).
 
 ---
 
