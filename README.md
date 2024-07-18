@@ -11,6 +11,8 @@ Competition is driving plant growth by modulating jointly with other drivers the
 ## :computer: Installation
 To install the package use ```devtools::install_github("iuFOR-QuantitativeForestry/sepci/sepci")```
 
+---
+
 ## :page_facing_up: Documentation and Examples
 ### :scroll: Vignettes
 [Complex competition indexes in forests](https://html-preview.github.io/?url=https://github.com/iuFOR-QuantitativeForestry/sepci/blob/main/sepci/doc/sepci.html)
