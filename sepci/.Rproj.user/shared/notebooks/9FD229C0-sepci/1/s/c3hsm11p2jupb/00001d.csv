@@ -1,4 +1,0 @@
-"0","# kerpar is used to pass arguments to our competion kernel"
-"0","ppp_with_index <- pairwise(valdepoza, maxR = 10, kernel = martin_ek,"
-"0","                            kerpar = list(dbh_mark = 1)) "
-"0","head(ppp_with_index$marks)"

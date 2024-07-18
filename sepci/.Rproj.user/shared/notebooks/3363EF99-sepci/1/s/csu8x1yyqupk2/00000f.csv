@@ -1,4 +1,0 @@
-"0","# ccs_area_ellipsoid is one of our package functions that computes the"
-"0","# cross sectional area approximating the crown by two half spheroids"
-"0","profile_equation_pinus_nigra <- ccs_area_ellipsoid"
-"0","profile_equation_quercus_pyrenaica <- ccs_area_ellipsoid"
